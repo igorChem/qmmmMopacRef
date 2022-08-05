@@ -1,9 +1,8 @@
 import sys                                                                                
-sys.path.append("/home/igorchem/VisMol/easyhybrid/pDynamoMethods") 
+sys.path.append("/home/igorchem/pDynamo3_scripts") 
 import pymp
 #-----------------------------------------------------------------------
-import os, glob
-from commonFunctions import *
+import os, glob, math
 from CoreInterface import *
 import SimulationsPreset
 
@@ -17,11 +16,42 @@ from pScientific               import *
 from pSimulation               import *
 
 #put the path of the amber tools bin
-_path   = "/home/igorchem/programs/amber20/bin"
+_path   = "/home/igorchem/programs/amber_20/bin"
 Reduce  = os.path.join(_path,"reduce")
 tleap   = os.path.join(_path,"tleap" )
 parmchk = os.path.join(_path,"parmchk2" )
 antech  = os.path.join(_path,"antechamber")
+
+#=======================================================================
+def SS_bonds(pdb):
+	'''
+	'''
+	text_lines = ""
+	with open(pdb) as f:
+		lines = f.readlines()
+		cyx_residues = []
+		j_coord_list = []
+	# ------------------------------------------------------------------
+		for line in lines:
+			if line.__contains__('SG  CYS'):
+				resnumber = int(line[22:30])
+				x = float(line[31:38])
+				y = float(line[39:46])
+				z = float(line[47:54])
+				cyx_residues.append([resnumber,x,y,z])
+	# ------------------------------------------------------------------
+		for i in cyx_residues:
+			for j in cyx_residues:
+				# ---
+				if i[0] not in j_coord_list:
+					dst = math.sqrt((i[1]-j[1])**2 + (i[2]-j[2])**2 + (i[3]-j[3])**2)
+				else:
+					continue
+				# ---
+				if dst > 0 and dst < 2.5 and i[0]:
+					j_coord_list.append(j[0])
+					text_lines+= "bond protein.{}.SG protein.{}.SG\n".format(i[0],j[0])
+	return(text_lines)
 
 #=======================================================================
 def TleapPars(pdb):
@@ -32,21 +62,36 @@ def TleapPars(pdb):
 	'''
 	#Creating tleap input to save ligand library
 	
-	pdb2 = pdb[:-4] + "_wh.pdb"	
 	
-	os.system("/home/igorchem/programs/amber20/bin/reduce -Trim {}".format(pdb) +" > "+pdb2 )
-	tleap_in =  "source oldff/leaprc.ff99SB \n"	
-	tleap_in += "source leaprc.water.tip3p \n"
-	tleap_in += "protein = loadPdb {} \n".format(pdb2)
-	tleap_in += "savePdb protein {}\n".format(pdb2)
-	tleap_in += "saveamberparm protein " +pdb[:-4]+".top "+ pdb[:-4] +".crd\n"
-	tleap_in += "quit"
-
+	pdb2 = pdb[:-4] + "_wh.pdb"	
+	pdb3 = pdb[:-4] + "_complex.pdb"
+	
+	os.system("/home/igorchem/programs/amber_20/bin/reduce -Trim {}".format(pdb) +" > "+pdb2 )
+	txt_cyx = SS_bonds(pdb2)
+	print(txt_cyx)
+	input()
+	
+	tleap_in = 
+	
 	tleap_file = open('tleap_in','w')
 	tleap_file.write(tleap_in)
 	tleap_file.close()
 	
-	os.system("/home/igorchem/programs/amber20/bin/tleap -f tleap_in")
+	os.system("/home/igorchem/programs/amber_20/bin/tleap -f tleap_in")
+	
+	tleap_in =  "source leaprc.protein.ff14SB \n"
+	tleap_in += "source leaprc.water.tip3p \n"
+	tleap_in += "protein = loadPdb {} \n".format(pdb2)
+	tleap_in += txt_cyx
+	tleap_in += "savePdb protein {}\n".format(pdb3)
+	tleap_in += "saveamberparm protein " +pdb[:-4]+".top "+ pdb[:-4] +".crd\n"
+	tleap_in += "quit"
+
+	tleap_file = open('tleap_in2','w')
+	tleap_file.write(tleap_in)
+	tleap_file.close()
+	
+	os.system("/home/igorchem/programs/amber_20/bin/tleap -f tleap_in2")
 	
 #-----------------------------------------------------------------------
 def ParametrizeLig(pdb_file,lig_name):
@@ -79,14 +124,15 @@ def TleapPars_Lig(pdb,lig):
 	'''
 	#Creating tleap input to save ligand library
 	
-	pdb2 = pdb[:-4] + "_wh.pdb"		
+	pdb2 = pdb[:-4] + "_wh.pdb"
+	pdb3 = pdb[:-4] + "_comp.pdb"
 	
-	os.system("/home/igorchem/programs/amber20/bin/reduce -Trim {}".format(pdb) +" > "+pdb2 )
-	tleap_in =  "source oldff/leaprc.ff99SB \n"	
+	os.system("/home/igorchem/programs/amber_20/bin/reduce -Trim {}".format(pdb) +" > "+pdb2 )
+	tleap_in =  "source leaprc.ff19SB \n"	
 	tleap_in =  "source leaprc.gaff2 \n"
 	tleap_in += "source leaprc.water.tip3p \n"
 	tleap_in += "protein = loadPdb {} \n".format(pdb2)
-	tleap_in += "savePdb protein {}\n".format(pdb2)
+	tleap_in += "savePdb protein {}\n".format(pdb3)
 	tleap_in += "saveamberparm protein " +pdb[:-4]+".top "+ pdb[:-4] +".crd\n"
 	tleap_in += "quit"
 
@@ -94,7 +140,7 @@ def TleapPars_Lig(pdb,lig):
 	tleap_file.write(tleap_in)
 	tleap_file.close()
 	
-	os.system("/home/igorchem/programs/amber20/bin/tleap -f tleap_in")
+	os.system("/home/igorchem/programs/amber_20/bin/tleap -f tleap_in")
 #-----------------------------------------------------------------------
 def load_system(top,crd):
 	'''
