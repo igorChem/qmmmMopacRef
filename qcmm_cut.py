@@ -22,38 +22,96 @@ tleap   = os.path.join(_path,"tleap" )
 parmchk = os.path.join(_path,"parmchk2" )
 antech  = os.path.join(_path,"antechamber")
 
+
 #=======================================================================
 def SS_bonds(pdb):
 	'''
 	'''
 	text_lines = ""
-	with open(pdb) as f:
-		lines = f.readlines()
-		cyx_residues = []
-		j_coord_list = []
+	new_pdb    = "" 
+	pdb2       = pdb[:-4] + "_cyx.pdb"
+	ss_bonds   = False
+	#-------------------------------------------------------------------
+	pdb_file = open(pdb,"r")
+	lines = pdb_file.readlines()
+	cyx_residues = []
+	res_number   = []
+	j_coord_list = []
 	# ------------------------------------------------------------------
-		for line in lines:
-			if line.__contains__('SG  CYS'):
-				resnumber = int(line[22:30])
-				x = float(line[31:38])
-				y = float(line[39:46])
-				z = float(line[47:54])
-				cyx_residues.append([resnumber,x,y,z])
-	# ------------------------------------------------------------------
-		for i in cyx_residues:
-			for j in cyx_residues:
-				# ---
-				if i[0] not in j_coord_list:
-					dst = math.sqrt((i[1]-j[1])**2 + (i[2]-j[2])**2 + (i[3]-j[3])**2)
-				else:
-					continue
-				# ---
-				if dst > 0 and dst < 2.5 and i[0]:
-					j_coord_list.append(j[0])
-					text_lines+= "bond protein.{}.SG protein.{}.SG\n".format(i[0],j[0])
-	return(text_lines)
+	for line in lines:
+		if line.__contains__('SG  CYS'):
+			ss_bonds = True
+			resnumber = int(line[22:30])
+			x = float(line[31:38])
+			y = float(line[39:46])
+			z = float(line[47:54])
+			cyx_residues.append([resnumber,x,y,z])
+			res_number.append(resnumber)
+		#new_pdb += "ATOM  {:>5} {:4} {:<3} {:1} {:>3} {:>11.3f} {:>7.3f} {:>7.3f} {:>5.2f} {:>5.2f} \n".format(l2[1],l2[2],l2[3]," ",resnumber,x,y,z,1.00,0.00)
+		else:
+			new_pdb += line
+	#-------------------------------------------------------------------
+	for i in cyx_residues:
+		for j in cyx_residues:
+			# ---
+			if i[0] not in j_coord_list:
+				dst = math.sqrt((i[1]-j[1])**2 + (i[2]-j[2])**2 + (i[3]-j[3])**2)
+			else:
+				continue
+			# ---
+			if dst > 0 and dst < 2.5 and i[0]:
+				j_coord_list.append(j[0])
+				text_lines+= "bond protein.{}.SG protein.{}.SG\n".format(i[0],j[0])
+	#-------------------------------------------------------------------
+	return(text_lines,ss_bonds,res_number)
 
 #=======================================================================
+def Prepare_PDB(pdb):
+	'''
+	'''
+	pdb2 = pdb[:-4] + "_wh.pdb" # pdb without hydrogens
+	pdb3 = pdb[:-4] + "_am.pdb" # pdb treated by amber 
+	pdb4 = pdb[:-4] + "_cyx.pdb" # pdb com cyx residues
+	os.system("/home/igorchem/programs/amber_20/bin/reduce -Trim {}".format(pdb) +" > "+pdb2 )
+	
+	tleap_in =  "source leaprc.protein.ff14SB \n"
+	tleap_in += "source leaprc.water.tip3p \n"
+	tleap_in += "protein = loadPdb {} \n".format(pdb2)
+	tleap_in += "savePdb protein {} \n".format(pdb3)
+	tleap_in += "quit"
+	
+	tleap_file = open('tleap_in','w')
+	tleap_file.write(tleap_in)
+	tleap_file.close()
+	
+	os.system("/home/igorchem/programs/amber_20/bin/tleap -f tleap_in")
+	
+	txt_cyx = SS_bonds(pdb3)
+	
+	if txt_cyx[1]:
+		cyx_residues = txt_cyx[2]
+		new_pdb      = ""
+		pdb_file     = open(pdb3,'r')
+		for line in pdb_file:
+			if line.__contains__("CYS"):
+				if int(line[22:30]) in cyx_residues:
+					print(line)
+					nline = line.replace("CYS","CYX")
+					print(nline)
+					new_pdb+=nline					
+				else:
+					new_pdb+=line
+			else:
+				new_pdb+=line
+		new_pdb_file = open(pdb4,"w")
+		new_pdb_file.write(new_pdb)
+		new_pdb_file.close()		
+		return(txt_cyx[0])
+	else:
+		print(txt_cyx[1])
+		
+#=======================================================================
+
 def TleapPars(pdb):
 	'''
 	Generate force field parameters using AMBER tleap by passing the pdb file path
@@ -62,36 +120,25 @@ def TleapPars(pdb):
 	'''
 	#Creating tleap input to save ligand library
 	
-	
-	pdb2 = pdb[:-4] + "_wh.pdb"	
-	pdb3 = pdb[:-4] + "_complex.pdb"
-	
-	os.system("/home/igorchem/programs/amber_20/bin/reduce -Trim {}".format(pdb) +" > "+pdb2 )
-	txt_cyx = SS_bonds(pdb2)
-	print(txt_cyx)
-	input()
-	
-	tleap_in = 
-	
+	pdb2 = pdb[:-4] + "_cyx.pdb"
+	pdb3 = pdb[:-4] + "_wh2.pdb"
+	pdb4 = pdb[:-4] + "_tleap.pdb"
+	info = Prepare_PDB(pdb)
+	os.system("/home/igorchem/programs/amber_20/bin/reduce -Trim {}".format(pdb2) +" > "+pdb3 )
+
+	tleap_in =  "source leaprc.protein.ff14SB \n"
+	tleap_in += "source leaprc.water.tip3p \n"
+	tleap_in += "protein = loadPdb {} \n".format(pdb3)
+	tleap_in += info
+	tleap_in += "savePdb protein {}\n".format(pdb4)
+	tleap_in += "saveamberparm protein " +pdb[:-4]+".top "+ pdb[:-4] +".crd\n"
+	tleap_in += "quit"
+
 	tleap_file = open('tleap_in','w')
 	tleap_file.write(tleap_in)
 	tleap_file.close()
 	
 	os.system("/home/igorchem/programs/amber_20/bin/tleap -f tleap_in")
-	
-	tleap_in =  "source leaprc.protein.ff14SB \n"
-	tleap_in += "source leaprc.water.tip3p \n"
-	tleap_in += "protein = loadPdb {} \n".format(pdb2)
-	tleap_in += txt_cyx
-	tleap_in += "savePdb protein {}\n".format(pdb3)
-	tleap_in += "saveamberparm protein " +pdb[:-4]+".top "+ pdb[:-4] +".crd\n"
-	tleap_in += "quit"
-
-	tleap_file = open('tleap_in2','w')
-	tleap_file.write(tleap_in)
-	tleap_file.close()
-	
-	os.system("/home/igorchem/programs/amber_20/bin/tleap -f tleap_in2")
 	
 #-----------------------------------------------------------------------
 def ParametrizeLig(pdb_file,lig_name):
@@ -103,6 +150,7 @@ def ParametrizeLig(pdb_file,lig_name):
 	command = antech +" -i "+pdb_file+" -fi pdb -o "+lig_name+".mol2 -fo mol2 -c bcc -nc 0 -m 1"
 	os.system(command)
 	command = parmchk+" -i "+lig_name+".mol2 -f mol2 -o " +lig_name+".frcmod"
+	
 	
 	input()
 	tleap_in =  "source leaprc.gaff2 \n"	
@@ -170,20 +218,23 @@ def mopac_input(pkl,center,size):
 				   "folder":pkl[:-4]+"_results"        ,
 				   "charge":0		                   ,
 				   "multiplicity":1 	               ,
-				   "methods_lists":methods             ,					   
+				   "methods_lists":methods             ,   
 				   "NmaxThreads":1                     ,
 				   #"mopac_keywords":["grad qmmm"]     ,
-				   "simulation_type":"Energy_Refinement",				   
+				   "simulation_type":"Energy_Refinement", 
 				   "Software":"mopac"	}
 
 	proj.RunSimulation(parameters)
 #=======================================================================
 if __name__ == "__main__":
-	if sys.argv[1] == "-gp":
-		print("generating force field parameters with amber force field")			
+	if 	 sys.argv[1] == "-pPDB":
+		print("Preparing PDB files")
+		Prepare_PDB(sys.argv[2])
+	elif sys.argv[1] == "-gp":
+		print("Generating force field parameters with amber force field")
 		TleapPars(sys.argv[2])
 	elif sys.argv[1] == "-lig":
-		print("generating force field parameters with amber force field")			
+		print("Generating force field parameters with amber force field")
 		ParametrizeLig(sys.argv[2],sys.argv[3])
 	elif sys.argv[1] == "-ls":
 		print("Testing the parameter loading")
