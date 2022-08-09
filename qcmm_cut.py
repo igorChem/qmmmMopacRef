@@ -95,9 +95,7 @@ def Prepare_PDB(pdb):
 		for line in pdb_file:
 			if line.__contains__("CYS"):
 				if int(line[22:30]) in cyx_residues:
-					print(line)
 					nline = line.replace("CYS","CYX")
-					print(nline)
 					new_pdb+=nline					
 				else:
 					new_pdb+=line
@@ -120,19 +118,30 @@ def TleapPars(pdb):
 	'''
 	#Creating tleap input to save ligand library
 	
+		
 	pdb2 = pdb[:-4] + "_cyx.pdb"
 	pdb3 = pdb[:-4] + "_wh2.pdb"
 	pdb4 = pdb[:-4] + "_tleap.pdb"
+	pdb5 = pdb[:-4] + "_am.pdb"
 	info = Prepare_PDB(pdb)
-	os.system("/home/igorchem/programs/amber_20/bin/reduce -Trim {}".format(pdb2) +" > "+pdb3 )
 
-	tleap_in =  "source leaprc.protein.ff14SB \n"
+	tleap_in = ""
+	tleap_in += "source leaprc.protein.ff14SB \n"
 	tleap_in += "source leaprc.water.tip3p \n"
-	tleap_in += "protein = loadPdb {} \n".format(pdb3)
-	tleap_in += info
-	tleap_in += "savePdb protein {}\n".format(pdb4)
-	tleap_in += "saveamberparm protein " +pdb[:-4]+".top "+ pdb[:-4] +".crd\n"
-	tleap_in += "quit"
+	if info:
+		os.system("/home/igorchem/programs/amber_20/bin/reduce -Trim {}".format(pdb2) +" > "+pdb3 )
+	
+		tleap_in += "protein = loadPdb {} \n".format(pdb3)
+		tleap_in += info
+		tleap_in += "savePdb protein {}\n".format(pdb4)
+		tleap_in += "saveamberparm protein " +pdb[:-4]+".top "+ pdb[:-4] +".crd\n"
+		tleap_in += "quit"
+	else:		
+		tleap_in += "protein = loadPdb {} \n".format(pdb5)
+		tleap_in += "savePdb protein {}\n".format(pdb4)
+		tleap_in += "saveamberparm protein " +pdb[:-4]+".top "+ pdb[:-4] +".crd\n"
+		tleap_in += "quit"
+		
 
 	tleap_file = open('tleap_in','w')
 	tleap_file.write(tleap_in)
