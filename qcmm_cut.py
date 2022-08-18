@@ -47,7 +47,6 @@ def SS_bonds(pdb):
 			z = float(line[47:54])
 			cyx_residues.append([resnumber,x,y,z])
 			res_number.append(resnumber)
-		#new_pdb += "ATOM  {:>5} {:4} {:<3} {:1} {:>3} {:>11.3f} {:>7.3f} {:>7.3f} {:>5.2f} {:>5.2f} \n".format(l2[1],l2[2],l2[3]," ",resnumber,x,y,z,1.00,0.00)
 		else:
 			new_pdb += line
 	#-------------------------------------------------------------------
