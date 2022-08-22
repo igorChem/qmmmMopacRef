@@ -212,7 +212,7 @@ def load_system(top,crd):
 def mopac_input(pkl,center,size):
 	'''
 	'''
-	proj=SimulationProject( "mopac_refine") 	
+	proj=SimulationProject( "mopac_refine")
 	proj.LoadSystemFromSavedProject(pkl)
 	methods = ["pm6","pm7","am1","rm1","pm3"]
 	
@@ -233,6 +233,29 @@ def mopac_input(pkl,center,size):
 				   "Software":"mopac"	}
 
 	proj.RunSimulation(parameters)
+
+#-----------------------------------------------------------------------
+def Treat_PDB_bind(path):
+	'''
+	Make all process of the functions above to test the methods for PDB_Bind data set
+	'''
+	path2    = path + "/*/*_protein.pdb"
+	pdb_list = glob.glob(path2)
+	
+	error_list = [] 
+	for pdb_ in pdb_list:
+		try:
+			top_ = pdb_[:-4] + ".top"
+			crd_ = pdb_[:-4] + ".crd"
+			#pkl_ = pdb_[:-4] + ".pkl"
+			TleapPars(pdb_)
+			load_system(top_,crd_)
+			#mopac_input(pkl_)
+		except:
+			
+			pass
+		
+
 #=======================================================================
 if __name__ == "__main__":
 	if 	 sys.argv[1] == "-pPDB":
@@ -251,4 +274,7 @@ if __name__ == "__main__":
 		print("Testing Mopac Refinement")
 		center = [ float(sys.argv[3]), float(sys.argv[4]), float(sys.argv[5]) ] 
 		mopac_input(sys.argv[2],center,float(sys.argv[6]))
+	elif sys.argv[1] == "-PDBbind":
+		print("Testing functions on PDB Binding!")
+		Treat_PDB_bind(sys.argv[2])
 	
