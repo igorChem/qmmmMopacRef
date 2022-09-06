@@ -252,8 +252,9 @@ def Treat_PDB_bind(path):
 			load_system(top_,crd_)
 			#mopac_input(pkl_)
 		except:
-			
+			error_list.append(pdb_)
 			pass
+			
 		
 
 #=======================================================================
