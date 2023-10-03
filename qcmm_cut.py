@@ -3,8 +3,8 @@ sys.path.append("/home/igorchem/pDynamo3_scripts")
 import pymp
 #-----------------------------------------------------------------------
 import os, glob, math
-from CoreInterface import *
-import SimulationsPreset
+from SimulationProject import *
+from Simulation import * 
 
 from pBabel                    import *                                     
 from pCore                     import *                                     
@@ -160,11 +160,10 @@ def ParametrizeLig(pdb_file,lig_name):
 	command = parmchk+" -i "+lig_name+".mol2 -f mol2 -o " +lig_name+".frcmod"
 	
 	
-	input()
 	tleap_in =  "source leaprc.gaff2 \n"	
-	tleap_in += "lig = loadmol2 {}\n".format(mol_file)
+	tleap_in += "lig = loadmol2 {}.mol2\n".format(lig_name)
 	tleap_in += "savePdb lig {}.pdb\n".format(lig_name)
-	tleap_in += "saveoff lig {}.lib.".format(lig_name)
+	tleap_in += "saveoff lig {}.lib\n".format(lig_name)
 	tleap_in += "quit"
 
 	tleap_file = open('tleap_in','w')
