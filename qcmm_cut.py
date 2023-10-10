@@ -102,13 +102,12 @@ def Prepare_PDB(pdb):
 				new_pdb+=line
 		new_pdb_file = open(pdb4,"w")
 		new_pdb_file.write(new_pdb)
-		new_pdb_file.close()		
+		new_pdb_file.close()
 		return(txt_cyx[0])
 	else:
 		print(txt_cyx[1])
 		
 #=======================================================================
-
 def TleapPars(pdb):
 	'''
 	Generate force field parameters using AMBER tleap by passing the pdb file path
@@ -173,22 +172,20 @@ def ParametrizeLig(pdb_file,lig_name):
 	os.system( tleap + " -f tleap_in")
 	
 #-----------------------------------------------------------------------
-def TleapPars_Lig(pdb,lig):
+def TleapPars_Lig(pdb,lig=None):
 	'''
 	Generate force field parameters
 	'''
 	#Creating tleap input to save ligand library
 	
-	pdb2 = pdb[:-4] + "_wh.pdb"
-	pdb3 = pdb[:-4] + "_comp.pdb"
-	
-	os.system("/home/igorchem/programs/amber_20/bin/reduce -Trim {}".format(pdb) +" > "+pdb2 )
-	tleap_in =  "source leaprc.ff19SB \n"	
+		
+	tleap_in =  "source leaprc.ff19SB \n"
 	tleap_in =  "source leaprc.gaff2 \n"
 	tleap_in += "source leaprc.water.tip3p \n"
-	tleap_in += "protein = loadPdb {} \n".format(pdb2)
-	tleap_in += "savePdb protein {}\n".format(pdb3)
-	tleap_in += "saveamberparm protein " +pdb[:-4]+".top "+ pdb[:-4] +".crd\n"
+	tleap_in += "{} = loadmol2 {}.lib\n".format(lig,lig)
+	tleap_in += "complex = loadPdb {} \n".format(pdb)
+	
+	tleap_in += "saveamberparm complex " +pdb[:-4]+".top "+ pdb[:-4] +".crd\n"
 	tleap_in += "quit"
 
 	tleap_file = open('tleap_in','w')
@@ -196,23 +193,12 @@ def TleapPars_Lig(pdb,lig):
 	tleap_file.close()
 	
 	os.system("/home/igorchem/programs/amber_20/bin/tleap -f tleap_in")
+	
 #-----------------------------------------------------------------------
-def load_system(top,crd):
+def mopac_input(top,crd,center,size):
 	'''
 	'''
-	system = ImportSystem(top)
-	system.coordinates3 = ImportCoordinates3(crd, log=None)
-	nbmodel = NBModelCutOff.WithDefaults( )
-	system.DefineNBModel(nbmodel)
-	system.Energy()    
-	Pickle(top[:-4]+".pkl",system)	
-
-#-----------------------------------------------------------------------
-def mopac_input(pkl,center,size):
-	'''
-	'''
-	proj=SimulationProject( "mopac_refine")
-	proj.LoadSystemFromSavedProject(pkl)
+	proj = SimulationProject.From_Force_Field(top,crd)
 	methods = ["pm6","pm7","am1","rm1","pm3"]
 	
 	#setting reaction coordinates for ploting labels
@@ -253,8 +239,28 @@ def Treat_PDB_bind(path):
 		except:
 			error_list.append(pdb_)
 			pass
-			
-		
+
+#-----------------------------------------------------------------------
+def Treat_PDB_bind_ligand(path):
+	'''
+	Make all process of the functions above to test the methods for PDB_Bind data set
+	with ligand
+	'''
+	path2    = path + "/*/*_protein.pdb"
+	pdb_list = glob.glob(path2)
+	lig_list = glob.glob(path3)
+	
+	error_list = [] 
+	for pdb_ in pdb_list:
+		try:
+			top_ = pdb_[:-4] + ".top"
+			crd_ = pdb_[:-4] + ".crd"
+			TleapPars_Lig(pdb_,lig_)
+			mopac_input()
+		except:
+			error_list.append(pdb_)
+			pass
+
 
 #=======================================================================
 if __name__ == "__main__":
